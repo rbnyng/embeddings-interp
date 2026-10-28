@@ -1,0 +1,11 @@
+# Code only. Data, results, the manuscript and generated figures stay local.
+data/
+results/
+paper/
+figures/*.png
+figures/*.pdf
+
+__pycache__/
+*.pyc
+*.egg-info/
+.ipynb_checkpoints/

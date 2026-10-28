@@ -1,0 +1,24 @@
+# conda env create -f environment.yml
+# Exact versions of every package: environment.lock.txt (conda) and requirements.lock.txt (pip).
+name: tessera
+dependencies:
+  - python=3.10
+  - pip
+  - pip:
+      - numpy==2.2.6
+      - scipy==1.15.3
+      - pandas==2.2.3
+      - scikit-learn==1.7.0
+      - matplotlib==3.10.3
+      - torch==2.5.1
+      - geopandas==1.1.1
+      - pyogrio==0.12.1
+      - shapely==2.1.1
+      - rasterio==1.4.3
+      - requests==2.32.3
+      - pyarrow==25.0.1          # AlphaEarth tile index
+      - pystac-client==0.8.6     # Sentinel-2 and Copernicus DEM from Planetary Computer
+      - planetary-computer==1.0.0
+      - stackstac==0.5.1
+      # Only experiments/new_water_labels.py (JRC Global Surface Water via Earth Engine):
+      # - earthengine-api==1.7.17
