@@ -1,8 +1,12 @@
-# embeddings-sae
+# Earth embeddings are decomposable records of the land surface
 
 The lib folder holds the shared code for downloading and reading tiles (tiles, alphaearth), the dictionary (sae), finding families (screen), the list of settings (settings), scoring units (measure), statistics (stats), and paths and constants (config). The experiments folder has one script per setting or analysis, and each script trains or loads a dictionary, measures its units and saves the results in the results folder.
 
 The code writes to data, results and figures folders inside the repository folder. To use other folders, set `TESSERA_INTERP_DATA`, `TESSERA_INTERP_RESULTS` and `TESSERA_INTERP_FIGURES`.
+
+## System requirements
+
+The code was implemented and tested on Ubuntu 24.04 with Python 3.10.13 and the package versions in environment.yml. The specific version of every package is in environment.lock.txt (conda) and requirements.lock.txt (pip). The demo needs under 1 GB of memory. Reproducing the whole paper needs about 1.5 TB of disk for the embeddings and reference maps. We ran it on a server with 256 cores and 1.5 TB of memory.
 
 ## Setup
 
@@ -12,7 +16,48 @@ conda activate tessera
 export PYTHONPATH=.    # run from the repository folder
 ```
 
-Package versions are pinned in environment.lock.txt and requirements.lock.txt. You also need curl, and unrar for two of the landslide inventories.
+A fresh install took about 5 minutes on our machine, most of it was downloading the pip packages.
+
+You also need curl, and unrar for two of the landslide inventories.
+
+## Demo
+
+```bash
+python demo/demo.py
+```
+
+The demo finds the western US burn family on the Dixie Fire and scores it on the 207 held-out western US fires. Its data are about 14 MB of stored results in demo/data, including the Dixie Fire's yearly mean activations and each fire's per-feature contrasts, derived from Tessera embeddings and MTBS fire perimeters. This takes about 30 seconds on four CPU cores. Expected output, which matches the western US row of Table S1:
+
+```
+1. Burn family found on the Dixie Fire: 32 of 1024 features
+   same as the paper's family (lib.config.BURN_FAMILY): True
+2. Held-out western US fires: 207, peaking in the year after the fire: 184 (0.889)
+3. Observed rate 0.889, 95% interval [0.845, 0.927] (tile bootstrap)
+   Random families: median 0.140, 95% interval [0.024, 0.406], share at or above the observed rate 0.000
+   Random live features outside the family: median 0.092
+```
+
+## Using the code on your own data
+
+To find a feature family for your own event, you need its tile, its year, and two boolean masks on the tile's 10 m grid for the disturbed and undisturbed pixels. `lib.tiles.tile_for_point(lon, lat)` specifies the tile, and `lib.tiles.tile_grid(tile)` gives the grid to rasterize your polygons onto. Then:
+
+```python
+from lib.sae import load_sae, group_means
+from lib.screen import anchored_family, peak_outcome
+from lib.tiles import download_tile, load_tile
+
+sae = load_sae()               # the Dixie dictionary, or load_sae(path=...) for your own
+traj = {}                      # disturbed minus undisturbed activation of every feature, by year since the event
+for year in range(2017, 2026):
+    download_tile(tile, year)
+    m = group_means(sae, load_tile(tile, year), {"disturbed": disturbed, "undisturbed": undisturbed})
+    traj[year - event_year] = m["disturbed"] - m["undisturbed"]
+
+family = anchored_family(traj, window=(1,))                      # features that peak in the expected window, Y+1
+outcome = peak_outcome({"my_event": traj}, family, window=(1,))   # {unit: (peak offset, dated in the window)}
+```
+
+On the Dixie Fire (lib.config.FIRES, with its dNBR burn mask) this recovers the paper's 32-feature burn family. To screen on several events, combine their trajectories with `lib.screen.median_contrasts`, then score other events with `peak_outcome`. To train a dictionary on your own tiles, sample pixels with `lib.tiles.sample_pixels` and train with `lib.sae.train_and_save`. To add a setting to the paper's pipeline, write an experiment script like those in experiments/, register it in lib/settings.py and add its units in pipeline/units.py.
 
 ## Data
 
@@ -22,9 +67,9 @@ Reference maps download with `python experiments/fetch.py reference`. Add produc
 
 Two sources need an account. RADD deforestation alerts need a Global Forest Watch API key in `GFW_API_KEY`, which amazon_arc_radd.py uses. JRC Global Surface Water needs Earth Engine, which new_water_labels.py uses. Install earthengine-api and put a project name in `EE_PROJECT`.
 
-## Running
+## Reproducing the paper
 
-Each experiment lists its steps at the top of its file. Run them in order for example
+Each experiment lists its steps at the top of its file. Run them in order, for example
 
 ```bash
 python experiments/landslides.py select
